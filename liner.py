@@ -1,38 +1,42 @@
+import pulp
 from pulp import *
 
-Billboards = ['Billboard_1', 'Billboard_2', 'Billboard_3']
+Billboards = ['Billboard1', 'Billboard2', 'Billboard3']
 
-costs = {'Billboard_1': 123.9, 
-         'Billboard_2': 111.3, 
-         'Billboard_3': 87.5, 
+costs = {'Billboard1': 123.9, 
+         'Billboard2': 111.3, 
+         'Billboard3': 87.5
+         }
+contacts = {'Billboard1': 1239, 
+            'Billboard2': 1113, 
+            'Billboard3': 871
          }
 
+Billboard1 = pulp.LpVariable("Billboard1", 2, 10, cat=pulp.LpInteger)
+Billboard2 = pulp.LpVariable("Billboard2", 2, 8, cat=pulp.LpInteger)
+Billboard3 = pulp.LpVariable("Billboard3", 2, 20, cat=pulp.LpInteger)
 
-prob = LpProblem("The number of display problem", LpMaximize)
-ingredient_vars = LpVariable.dicts("Ingr", Billboards, 200)
-x1=LpVariable("Billboard_1", 2, 10, LpInteger)
-x2=LpVariable("Billboard_2", 2, 8, LpInteger)
-x3=LpVariable("Billboard_3", 2, 20, LpInteger)
+Difference_constaint_BB1_BB2 = {"Billboard1": 1.0,
+                                "Billboard2": 1.0,
+                                "Billboard3": 0.0}
 
-proteinPercent = {"Billboard_1": 1.0,
-"Billboard_2": 0.0,
-"Billboard_3": 0.0}
+Difference_constaint_BB1_BB3 = {"Billboard1": 1.0,
+                                "Billboard2": 0.0,
+                                "Billboard3": 1.0}
 
-fatPercent= {"Billboard_1": 0.0,
-"Billboard_2": 1.0,
-"Billboard_3": 0.0}
+Difference_constaint_BB2_BB3 = {"Billboard1": 0.0,
+                                "Billboard2": 1.0,
+                                "Billboard3": 1.0}
 
-fibrePercent = {"Billboard_1": 0.0,
-"Billboard_2": 0.0,
-"Billboard_3": 1.0}
+prob = pulp.LpProblem("The number of display problem", pulp.LpMaximize)
+ingredient_vars = pulp.LpVariable.dicts("Ingr", Billboards, 2, cat= pulp.LpInteger)
+# Objective Function 
+prob += pulp.lpSum([costs[i]*ingredient_vars[i] for i in Billboards])
 
-
-
-prob = lpSum([costs[i]*ingredient_vars[i] for i in Billboards])
-prob += lpSum([proteinPercent[i] * ingredient_vars[i] for i in Billboards]) <= 10.0
-prob += lpSum([fatPercent[i] * ingredient_vars[i] for i in Billboards]) <= 8.0
-prob += lpSum([fibrePercent[i] * ingredient_vars[i] for i in Billboards]) <= 20.0
-
+#prob += pulp.lpSum([Difference_constaint_BB1_BB2[i] * ingredient_vars[i] for i in Billboards]) <= 2
+prob += pulp.lpSum([Difference_constaint_BB1_BB3[i] * ingredient_vars[i] for i in Billboards]) <= 10
+prob += pulp.lpSum([Difference_constaint_BB2_BB3[i] * ingredient_vars[i] for i in Billboards]) <= 12
+prob += pulp.lpSum([contacts[i]*ingredient_vars[i] for i in Billboards]) <= 20000
 # The problem data is written to an .lp file
 prob.writeLP("The number of display problem.lp")
 
@@ -40,6 +44,7 @@ prob.writeLP("The number of display problem.lp")
 prob.solve()
 
 # The status of the solution is printed to the screen
+print("Status:", pulp.LpStatus[prob.status])
 
 
 # Each of the variables is printed with it's resolved optimum value
