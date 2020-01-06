@@ -5,7 +5,7 @@ Billboards = ['Billboard1', 'Billboard2', 'Billboard3']
 
 costs = {'Billboard1': 123.9, 
          'Billboard2': 111.3, 
-         'Billboard3': 87.5
+         'Billboard3': 87.1
          }
 contacts = {'Billboard1': 1239, 
             'Billboard2': 1113, 
