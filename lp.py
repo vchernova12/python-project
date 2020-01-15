@@ -3,13 +3,13 @@ import numpy as np
 import math
 
 
-def constrain_matrix(billboards):
-    constrain_matrix = np.mat(np.eye(len(billboards)))
-    constrain = np.split(np.array(constrain_matrix), len(billboards))
-    billboard_constrain = {}
+def contraint_matrix(billboards):
+    contraint_matrix = np.mat(np.eye(len(billboards)))
+    contraint = np.split(np.array(contraint_matrix), len(billboards))
+    billboard_contraint = {}
     for index, billboard in enumerate(billboards):
-        billboard_constrain.update({f'{billboard}': constrain[index]})
-    return billboard_constrain
+        billboard_contraint.update({f'{billboard}': contraint[index]})
+    return billboard_contraint
 
 
 def avg_number_of_display(budget, billboards_costs):
@@ -25,19 +25,20 @@ def billboards_with_minimal_stock(avg_display, in_stock):
     return bb_with_minimal_stock
 
 
-def lp_bb_constrains(billboard_constrain, bb_with_minimal_stock, billboards):
-    new_billboard_constrain = {}
-    for bb  in billboard_constrain:
+def lp_bb_contraints(billboard_contraint, bb_with_minimal_stock, billboards):
+    new_billboard_contraint = {}
+    for bb  in billboard_contraint:
         if bb not in bb_with_minimal_stock.keys():
-            new_billboard_constrain.update({f'{bb}': billboard_constrain[bb]})
-    return new_billboard_constrain 
+            new_billboard_contraint.update({f'{bb}': billboard_contraint[bb]})
+    return new_billboard_contraint 
 
 
-def lp_upper_bound(new_billboard_constrain, billboards, in_stock):
+def lp_upper_bound(new_billboard_contraint, billboards, in_stock):
     upper_bound = []
-    for bb in new_billboard_constrain:
-        upper_bound.append(f'prob += p.lpSum({new_billboard_constrain[bb]}) for i in billboards]) <= {in_stock[bb]}')
+    for bb in new_billboard_contraint:
+        upper_bound.append(f'prob += p.lpSum({new_billboard_contraint[bb]}) for i in billboards]) <= {in_stock[bb]}')
     return upper_bound
+
 
 def lp_budget(bb_with_minimal_stock, budget, billboards_costs, in_stock):
     budget_for_minimals = 0
@@ -47,35 +48,62 @@ def lp_budget(bb_with_minimal_stock, budget, billboards_costs, in_stock):
     return new_budget
 
 
-def lp_low_bound(new_billboard_constrain, billboards_costs, in_stock, budget_for_lp, avg_display, billboards):
+def lp_low_bound(new_billboard_contraint, billboards_costs, in_stock, budget_for_lp, avg_display, billboards):
     lp_bb_costs = 0.0
-    for bb in new_billboard_constrain:
+    for bb in new_billboard_contraint:
         lp_bb_costs += billboards_costs[bb]
     lp_avg_display = math.floor(budget_for_lp/lp_bb_costs)
     low_bound = []
-    for bb in new_billboard_constrain:
+    for bb in new_billboard_contraint:
         if in_stock[bb] > lp_avg_display:
-        low_bound.append(f'prob += p.lpSum({new_billboard_constrain[bb]}) for i in billboards]) => {lp_avg_display}')
+            low_bound.append(f'prob += p.lpSum({new_billboard_contraint[bb]}) for i in billboards]) => {lp_avg_display}')
         else:
-            low_bound.append(f'prob += p.lpSum({new_billboard_constrain[bb]}) for i in billboards]) => {avg_display}')
+            low_bound.append(f'prob += p.lpSum({new_billboard_contraint[bb]}) for i in billboards]) => {avg_display}')
         return low_bound
 
-def lp_budget_constrain(lp_budget):
-    max_budget_constrain = (f'prob += p.lpSum([billboards_cost[i]*ingredient_vars[i] for i in billboards]) >= {lp_budget*1.05}')
-    min_budget_constrain = (f'prob += p.lpSum([costs[i]*ingredient_vars[i] for i in billboards]) <= {lp_budget*0.95}')
-    return max_budget_constrain, min_budget_constrain
+
+def lp_budget_contraint(lp_budget):
+    max_budget_contraint = (f'prob += p.lpSum([billboards_cost[i]*ingredient_vars[i] for i in billboards]) >= {lp_budget*1.05}')
+    min_budget_contraint = (f'prob += p.lpSum([billboards_cost[i]*ingredient_vars[i] for i in billboards]) <= {lp_budget*0.95}')
+    return max_budget_contraint, min_budget_contraint
 
 
-def lp_constrains_constractor(budget, billboards, in_stock, billboards_costs):
-    billboard_constrain = constrain_matrix(billboards)
+def lp_contraints_constractor(budget, billboards, in_stock, billboards_costs):
+    billboard_contraint = contraint_matrix(billboards)
     avg_display = avg_number_of_display(budget, billboards_costs)
     bb_with_minimal_stock = billboards_with_minimal_stock(avg_display, in_stock)
-    new_billboard_constrain = lp_bb_constrains(billboard_constrain, bb_with_minimal_stock, billboards)
-    upper_bound = lp_upper_bound(new_billboard_constrain, billboards, in_stock)
+    new_billboard_contraint = lp_bb_contraints(billboard_contraint, bb_with_minimal_stock, billboards)
+    upper_bound = lp_upper_bound(new_billboard_contraint, billboards, in_stock)
     budget_for_lp = lp_budget(bb_with_minimal_stock, budget, billboards_costs, in_stock)
-    low_bound = lp_low_bound(new_billboard_constrain, billboards_costs, in_stock, budget_for_lp, avg_display, billboards)
-    budget_constrain = lp_budget_constrain(budget_for_lp)
-    return (upper_bound, low_bound, budget_constrain)
+    low_bound = lp_low_bound(new_billboard_contraint, billboards_costs, in_stock, budget_for_lp, avg_display, billboards)
+    budget_contraint = lp_budget_contraint(budget_for_lp)
+    return upper_bound, low_bound, budget_contraint
+
+
+def lp_constractor(budget, billboards, in_stock, billboards_costs):
+    prob = p.LpProblem("The number of display problem", p.LpMaximize)
+    ingredient_vars = p.LpVariable.dicts("Ingr", billboards, 2, cat=p.LpInteger)
+    # Objective Function
+    prob += p.lpSum([billboards_costs[i]*ingredient_vars[i] for i in billboards])    
+    # Contraintts: 
+    contraints = lp_contraints_constractor(budget, billboards, in_stock, billboards_costs)
+    for contraint in contraints:
+        contraint
+    # The problem data is written to an .lp file
+    prob.writeLP("The number of display problem.lp")
+
+    # The problem is solved using PuLP's choice of Solver
+    prob.solve()
+
+    # The status of the solution is printed to the screen
+    print("Status:", p.LpStatus[prob.status])
+
+    # Each of the variables is printed with it's resolved optimum value
+    for v in prob.variables():
+        if v.varValue > 0:
+            print(v.name, "=", v.varValue)
+    # The optimised objective function value is printed to the screen   
+    print(p.value(prob.objective))
 
 
 if __name__ == "__main__":
@@ -83,7 +111,7 @@ if __name__ == "__main__":
     #in_stock = [4.0, 10.3, 18.1, 18.1, 4.0]
     #billboards_costs = [126.19, 102.54, 316.60, 388.62, 359.34]
     #budget = 7170
-    print(lp_constrains_constractor(7170, ['BB1', 'BB2', 'SS1', 'SS2', 'SS3'], 
+    print(lp_constractor(7170, ['BB1', 'BB2', 'SS1', 'SS2', 'SS3'], 
                     {"BB1": 4.0,
                     "BB2": 10.0,
                     "SS1": 18.0,
@@ -94,3 +122,4 @@ if __name__ == "__main__":
                     "SS1": 316.60,
                     "SS2": 388.62,
                     "SS3": 359.34}))
+
